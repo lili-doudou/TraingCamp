@@ -24,12 +24,6 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
             <version>RELEASE</version>
         </dependency>
         <dependency>
@@ -74,7 +68,12 @@
             <artifactId>hadoop-auth</artifactId>
             <version>2.6.0</version>
         </dependency>
-    </dependencies>
 
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-client</artifactId>
+            <version>2.1.3</version>
+        </dependency>
+    </dependencies>
 
 </project>

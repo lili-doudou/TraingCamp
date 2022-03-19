@@ -18,11 +18,11 @@ public class FlowDriver extends Configured implements Tool{
 
     public int run(String[] args) throws Exception {
 
-
         Configuration conf = new Configuration();
 
         Job job = Job.getInstance(conf);
 
+        // Jar
         job.setJarByClass(FlowDriver.class);
 
         job.setMapperClass(FlowMapper.class);
