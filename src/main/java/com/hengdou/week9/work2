@@ -1,0 +1,73 @@
+## 作业二：构建 SQL 满足如下要求
+
+通过 set spark.sql.planChangeLog.level=WARN，查看：
+
+ (1)   构建一条 SQL，同时 apply 下面三条优化规则：
+
+    CombineFilters  // 谓词下推中 是合并Filter节点的优化器，
+                   // 即处理Filter+Filter的情况 ，CombineFilters只有在Filter中的condition都是确定性的时候才能合并
+    CollapseProject // 有两个确定，且独立的select操作可以进行合并
+    BooleanSimplification // 布尔表达式简化
+
+  (2)  构建一条 SQL，同时 apply 下面五条优化规则：
+
+    ConstantFolding
+    PushDownPredicates
+    ReplaceDistinctWithAggregate
+    ReplaceExceptWithAntiJoin
+    FoldablePropagation
+    
+(1) 
+`create table customers (name string,address string,age int) stored as orc;`
+ `insert into table customers values ('xiaodou','beijing',23),('doudou','shanghai',25),('zhangsan','heilongjiang',35);
+ `
+ 设置 set spark.sql.planChangeLog.level=WARN
+ 
+`select a.address 
+ from (
+ 	select name, address,age 
+ 	from customers 
+ 	where 1="1" and age > 5
+ ) a 
+ where a.age<30`
+ 
+ 执行日志
+ ` === Applying Rule org.apache.spark.sql.catalyst.optimizer.PushDownPredicates ===`
+  `Project [address#44]                                                Project [address#44]`
+  `!+- Filter (age#45 < 30)                                             +- Filter (((1 = cast(1 as int)) AND (age#45 > 5)) AND (age#45 < 30))`
+ `!   +- Filter ((1 = cast(1 as int)) AND (age#45 > 5))                   +- Relation doudou.customers[name#43,address#44,age#45] orc`
+  `!      +- Relation doudou.customers[name#43,address#44,age#45] orc`
+  
+ `22/05/08 19:26:55 WARN [main] PlanChangeLogger:`
+  `=== Applying Rule org.apache.spark.sql.catalyst.optimizer.ConstantFolding ===`
+ `  Project [address#44]                                                    Project [address#44]`
+  `!+- Filter (((1 = cast(1 as int)) AND (age#45 > 5)) AND (age#45 < 30))   +- Filter ((true AND (age#45 > 5)) AND (age#45 < 30))`
+  `    +- Relation doudou.customers[name#43,address#44,age#45] orc             +- Relation doudou.customers[name#43,address#44,age#45] orc`
+  ``
+  `22/05/08 19:26:55 WARN [main] PlanChangeLogger:`
+ ` === Applying Rule org.apache.spark.sql.catalyst.optimizer.BooleanSimplification ===`
+  ` Project [address#44]                                             Project [address#44]`
+ ` !+- Filter ((true AND (age#45 > 5)) AND (age#45 < 30))            +- Filter ((age#45 > 5) AND (age#45 < 30))`
+   `   +- Relation doudou.customers[name#43,address#44,age#45] orc      +- Relation doudou.customers[name#43,address#44,age#45] orc`
+  
+  `22/05/08 19:26:55 WARN [main] PlanChangeLogger:`
+  `=== Result of Batch Operator Optimization before Inferring Filters ===`
+   `Project [address#44]                                                Project [address#44]`
+  `!+- Filter (age#45 < 30)                                             +- Filter ((age#45 > 5) AND (age#45 < 30))`
+  `!   +- Filter ((1 = cast(1 as int)) AND (age#45 > 5))                   +- Relation doudou.customers[name#43,address#44,age#45] orc`
+  `!      +- Relation doudou.customers[name#43,address#44,age#45] orc`
+（2）
+`(select a.address , a.age + (100 + 80) , Now() z 
+ from (select distinct name, age , address  
+ 	from customers
+ ) a 
+ where a.age>10 order by z)  
+ except 
+ (select a.address , a.age + (100 + 80), Now() z 
+ from (
+ 	select distinct name, age , address  
+ 	from customers
+ ) a 
+ where a.name="saya");`
+ `
+ `
